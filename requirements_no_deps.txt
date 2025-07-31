@@ -1,3 +1,0 @@
-# 无依赖安装 pip install --no-deps
-mediapipe==0.10.14
-BabelDOC

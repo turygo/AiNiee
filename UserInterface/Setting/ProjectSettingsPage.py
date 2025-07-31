@@ -199,6 +199,7 @@ class ProjectSettingsPage_B(QFrame, Base):
             "label_output_path": "./output",
             "auto_set_output_path": True,
             "keep_original_encoding": False,
+            "original_text_style": "italic",
         }
 
         # 载入并保存默认配置
@@ -214,6 +215,7 @@ class ProjectSettingsPage_B(QFrame, Base):
         self.add_widget_03(self.container, config)
         self.add_widget_04(self.container, config)
         self.add_widget_exclude_rule(self.container, config)
+        self.add_widget_original_text_style(self.container, config)
         self.add_widget_06(self.container, config)
         self.add_widget_07(self.container, config)
         self.add_widget_08(self.container, config)
@@ -272,6 +274,10 @@ class ProjectSettingsPage_B(QFrame, Base):
             config = self.load_config()
             config["translation_project"] = value
             self.save_config(config)
+            
+            # 更新原文样式控件的可见性
+            if hasattr(self, 'original_style_widget'):
+                self.original_style_widget.setVisible(value in ["AutoType", ProjectType.AUTO_TYPE, ProjectType.EPUB])
 
         # 创建选项列表（使用翻译后的显示文本）
         options = [display for display, value in translated_pairs]
@@ -418,6 +424,55 @@ class ProjectSettingsPage_B(QFrame, Base):
                 text_changed=text_changed,
             )
         )
+
+    # 原文样式选择
+    def add_widget_original_text_style(self, parent, config) -> None:
+        # 定义样式选项
+        style_pairs = [
+            (self.tra("斜体"), "italic"),
+            (self.tra("弱化"), "dimmed"),
+        ]
+
+        def init(widget) -> None:
+            """初始化时根据存储的值设置当前选项"""
+            current_config = self.load_config()
+            current_value = current_config.get("original_text_style", "italic")
+            
+            # 通过值查找对应的索引
+            index = next(
+                (i for i, (_, value) in enumerate(style_pairs) if value == current_value),
+                0  # 默认选择第一个选项
+            )
+            widget.set_current_index(max(0, index))
+            
+            # 根据项目类型设置可见性
+            project_type = current_config.get("translation_project", "AutoType")
+            widget.setVisible(project_type in ["AutoType", ProjectType.AUTO_TYPE, ProjectType.EPUB])
+
+        def current_text_changed(widget, text: str) -> None:
+            """选项变化时存储对应的值"""
+            # 通过显示文本查找对应的值
+            value = next(
+                (value for display, value in style_pairs if display == text),
+                "italic"  # 默认值
+            )
+            
+            config = self.load_config()
+            config["original_text_style"] = value
+            self.save_config(config)
+
+        # 创建选项列表
+        options = [display for display, _ in style_pairs]
+
+        self.original_style_widget = ComboBoxCard(
+            self.tra("双语原文样式"),
+            self.tra("设置双语输出时原文的显示样式（仅对EPUB文件有效）"),
+            options,
+            init=init,
+            current_text_changed=current_text_changed
+        )
+        
+        parent.addWidget(self.original_style_widget)
 
     # 输出文件夹
     def add_widget_06(self, parent, config) -> None:

@@ -5,6 +5,7 @@ from typing import Callable
 
 from bs4 import BeautifulSoup
 
+from Base.Base import Base
 from ModuleFolders.Cache.CacheFile import CacheFile
 from ModuleFolders.Cache.CacheItem import TranslationStatus
 from ModuleFolders.Cache.CacheProject import ProjectType
@@ -17,7 +18,7 @@ from ModuleFolders.FileOutputer.BaseWriter import (
 )
 
 
-class EpubWriter(BaseBilingualWriter, BaseTranslatedWriter):
+class EpubWriter(BaseBilingualWriter, BaseTranslatedWriter, Base):
     def __init__(self, output_config: OutputConfig):
         super().__init__(output_config)
         self.file_accessor = EpubAccessor()
@@ -215,14 +216,26 @@ class EpubWriter(BaseBilingualWriter, BaseTranslatedWriter):
 
     # 构建双语版本标签
     def _rebuild_bilingual_tag(self, original_html, translated_text):
-        # 样式配置常量
-        ORIGINAL_STYLE = {
-            'opacity': '0.8',
-            'color': '#888',
-            'font-size': '0.85em',
-            'font-style': 'italic',
-            'margin-top': '0.5em'
-        }
+        # 获取配置中的原文样式设置
+        config = self.load_config()
+        style_type = config.get("original_text_style", "italic")
+        
+        # 根据配置选择样式
+        if style_type == "dimmed":
+            # 弱化样式 - 仅改变颜色，保留原有样式
+            ADDITIONAL_STYLE = {
+                'margin-top': '0.5em',
+                'color': 'rgb(65, 84, 98)'
+            }
+        else:
+            # 斜体样式 - 添加斜体和其他样式
+            ADDITIONAL_STYLE = {
+                'opacity': '0.8',
+                'color': '#888',
+                'font-size': '0.85em',
+                'font-style': 'italic',
+                'margin-top': '0.5em'
+            }
 
         try:
             soup = BeautifulSoup(original_html, 'html.parser')
@@ -232,7 +245,7 @@ class EpubWriter(BaseBilingualWriter, BaseTranslatedWriter):
             if not original_tag:
                 original_text = soup.get_text()
                 processed_trans = self._copy_leading_spaces(original_text, translated_text)
-                style_str = '; '.join([f"{k}:{v}" for k, v in ORIGINAL_STYLE.items()])
+                style_str = '; '.join([f"{k}:{v}" for k, v in ADDITIONAL_STYLE.items()])
                 return f'''<div class="bilingual-container">
                             <div class="translated-text">{processed_trans}</div>
                             <div class="original-text" style="{style_str}">{original_html}</div>
@@ -254,7 +267,7 @@ class EpubWriter(BaseBilingualWriter, BaseTranslatedWriter):
             # 原文部分（样式增强）
             original_tag['class'] = original_tag.get('class', []) + ['original-text']
             existing_style = original_tag.get('style', '').rstrip(';')
-            new_style = '; '.join([f"{k}:{v}!important" for k, v in ORIGINAL_STYLE.items()])
+            new_style = '; '.join([f"{k}:{v}!important" for k, v in ADDITIONAL_STYLE.items()])
             original_tag['style'] = f"{existing_style}; {new_style}".strip('; ')
             original_tag.attrs.pop('id', None)
 
@@ -266,7 +279,7 @@ class EpubWriter(BaseBilingualWriter, BaseTranslatedWriter):
         except Exception as e:
             print(f"Bilingual generation error: {e}")
             # 异常情况保持双语结构
-            style_str = '; '.join([f"{k}:{v}" for k, v in ORIGINAL_STYLE.items()])
+            style_str = '; '.join([f"{k}:{v}" for k, v in ADDITIONAL_STYLE.items()])
             return f'''<div class="bilingual-container">
                         <div class="translated-text">{translated_text}</div>
                         <div class="original-text" style="{style_str}">{original_html}</div>
